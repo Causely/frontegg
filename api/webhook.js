@@ -1,9 +1,27 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 app.use(bodyParser.json());
+
+// Middleware to authenticate webhook requests
+function authenticateWebhook(req, res, next) {
+    const webhookToken = req.headers['x-webhook-secret'];
+
+    if (!webhookToken) {
+        return res.status(403).send({ message: 'Unauthorized: Missing webhook token' });
+    }
+
+    try {
+        // Verify the token using the secret key
+        jwt.verify(webhookToken, process.env.WEBHOOK_SECRET);
+        next();
+    } catch (err) {
+        return res.status(403).send({ message: 'Unauthorized: Invalid webhook token' });
+    }
+}
 
 // Function to get authentication token
 async function getAuthToken() {
@@ -47,21 +65,24 @@ async function assignUserToTenant(userEmail) {
 
 // Webhook handler
 module.exports = async (req, res) => {
-    if (req.method !== 'POST') {
-        return res.status(405).send({ message: 'Method not allowed' });
-    }
-
-    const { eventKey, eventContext, user } = req.body;
-
-    if (eventKey === 'frontegg.user.activated' && eventContext?.tenantId !== process.env.DEMO_TENANT_ID)  {
-        try {
-            await assignUserToTenant(user.email);
-
-            res.status(200).send({ message: 'User successfully assigned to tenant.' });
-        } catch (error) {
-            res.status(500).send({ error: error.message });
+    // Authenticate webhook
+    authenticateWebhook(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).send({message: 'Method not allowed'});
         }
-    } else {
-        res.status(400).send({ message: 'Invalid event key or already in the demo tenant.' });
-    }
+
+        const {eventKey, eventContext, user} = req.body;
+
+        if (eventKey === 'frontegg.user.activated' && eventContext?.tenantId !== process.env.DEMO_TENANT_ID) {
+            try {
+                await assignUserToTenant(user.email);
+
+                res.status(200).send({message: 'User successfully assigned to tenant.'});
+            } catch (error) {
+                res.status(500).send({error: error.message});
+            }
+        } else {
+            res.status(400).send({message: 'Invalid event key or already in the demo tenant.'});
+        }
+    });
 };
