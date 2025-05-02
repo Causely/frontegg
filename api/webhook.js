@@ -6,6 +6,38 @@ const jwt = require('jsonwebtoken');
 const app = express();
 app.use(bodyParser.json());
 
+// HubSpot Contact Creation
+async function createHubspotContact({ email, firstName, lastName }) {
+    try {
+
+        if(!process.env.HUBSPOT_ACCESS_TOKEN) {
+            console.log('HubSpot access token is not set. Skipping contact creation.');
+            return;
+        }
+
+        await axios.post(
+            'https://api.hubapi.com/crm/v3/objects/contacts',
+            {
+                properties: {
+                    email,
+                    firstname: firstName || '',
+                    lastname: lastName || '',
+                },
+            },
+            {
+                headers: {
+                    Authorization: `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`,
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+        console.log('HubSpot contact created:', email);
+    } catch (error) {
+        console.error('Error creating HubSpot contact:', error.response?.data || error.message);
+    }
+}
+
+
 // Middleware to authenticate webhook requests
 function authenticateWebhook(req, res, next) {
     const webhookToken = req.headers['x-webhook-secret'];
@@ -78,6 +110,18 @@ module.exports = async (req, res) => {
                 await assignUserToTenant(user.email);
 
                 res.status(200).send({message: 'User successfully assigned to tenant.'});
+            } catch (error) {
+                res.status(500).send({error: error.message});
+            }
+        } if (eventKey === 'frontegg.user.signedUp' && process.env.HUBSPOT_ACCESS_TOKEN) { 
+            try {
+                const [firstName, lastName] = user?.name?.split(' ') || [];
+                await createHubspotContact({
+                        email: user.email,
+                        firstName: firstName || '',
+                        lastName: lastName || ''
+                    });
+                res.status(200).send({message: 'Successfully created HubSpot contact.'});
             } catch (error) {
                 res.status(500).send({error: error.message});
             }
