@@ -20,6 +20,8 @@ function authenticateWebhook(req, res, next) {
     }
 
     try {
+        console.log(webhookToken)
+        console.log(config.webhook.secret)
         jwt.verify(webhookToken, config.webhook.secret);
         next();
     } catch (err) {
