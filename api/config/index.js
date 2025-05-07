@@ -11,6 +11,7 @@ const config = {
     hubspot: {
         accessToken: process.env.HUBSPOT_ACCESS_TOKEN,
         apiUrl: process.env.HUBSPOT_API_URL,
+        appContactUrl: process.env.HUBSPOT_APP_CONTACT_URL,
     },
     slack: {
         apiUrl: process.env.SLACK_API_URL

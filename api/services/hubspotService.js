@@ -3,6 +3,14 @@ const config = require('../config');
 const ErrorUtil = require('../utils/errorUtil');
 
 const HubspotService = {
+    getContactUrl(contact) {
+        if (!config.hubspot.appContactUrl) {
+            console.log('Hubspot app url is not set.')
+            return '';
+        }
+        return contact?.properties?.hs_object_id ? `${config.hubspot.appContactUrl}/${contact?.properties?.hs_object_id}` : '';
+    },
+
     async createContact({ email, firstName, lastName }) {
         if (!config.hubspot.accessToken) {
             console.log('HubSpot access token is not set. Skipping contact creation.');

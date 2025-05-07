@@ -63,7 +63,7 @@ module.exports = async (req, res) => {
                 });
 
                 // Send Slack notification with HubSpot contact URL
-                await SlackService.sendMessage(user, hubspotContact?.url);
+                await SlackService.sendMessage(user, HubspotService.getContactUrl(hubspotContact));
 
                 return res.status(200).json({
                     status: 'success',
