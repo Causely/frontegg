@@ -104,20 +104,31 @@ axios.post.mockResolvedValue({ data: { accessToken: 'mock-token' } });
 POST /api/webhook
 ```
 
+https://vercel.com/docs/security/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation
+
 Headers:
+- `x-vercel-protection-bypass`: VERCEL_AUTOMATION_BYPASS_SECRET
 - `x-webhook-secret`: Webhook authentication token
 
 Body:
 ```json
 {
-  "eventKey": "USER_SIGNED_UP",
-  "eventContext": {
-    "tenantId": "tenant-id"
-  },
   "user": {
-    "email": "user@example.com",
-    "name": "John Doe"
-  }
+    "id": "test-user-id",
+    "name": "Test User",
+    "email": "test@causely.io",
+    "tenantIds": [
+      "test-tenant-id"
+    ],
+    "tenantId": "test-tenant-id"
+  },
+  "eventContext": {
+    "vendorId": "test-Vendor-id",
+    "tenantId": "test-tenant-id",
+    "userId": "test-user-id",
+    "applicationId": "test-application-id"
+  },
+  "eventKey": "frontegg.user.signedUp"
 }
 ```
 

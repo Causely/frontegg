@@ -56,6 +56,8 @@ const SlackService = {
             const message = this.formatMessage({ user, companyName, hubspotContactUrl });
 
             await axios.post(config.slack.apiUrl, message);
+
+            console.log('Slack Message sent:', message);
         } catch (error) {
             throw ErrorUtil.internal('Failed to post to Slack');
         }
