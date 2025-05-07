@@ -37,7 +37,7 @@ describe('HubspotService', () => {
             // THEN
             expect(result).toEqual(mockResponse.data);
             expect(axios.post).toHaveBeenCalledWith(
-                config.hubspot.apiUrl,
+                config.hubspot.contactApiUrl,
                 {
                     properties: {
                         email: mockContact.email,

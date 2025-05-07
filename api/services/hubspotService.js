@@ -4,11 +4,11 @@ const ErrorUtil = require('../utils/errorUtil');
 
 const HubspotService = {
     getContactUrl(contact) {
-        if (!config.hubspot.appContactUrl) {
+        if (!config.hubspot.contactAppUrl) {
             console.log('Hubspot app url is not set.')
             return '';
         }
-        return contact?.properties?.hs_object_id ? `${config.hubspot.appContactUrl}/${contact?.properties?.hs_object_id}` : '';
+        return contact?.properties?.hs_object_id ? `${config.hubspot.contactAppUrl}/${contact?.properties?.hs_object_id}` : '';
     },
 
     async createContact({ email, firstName, lastName }) {
@@ -18,7 +18,7 @@ const HubspotService = {
         }
 
         try {
-            const response = await axios.post(config.hubspot.apiUrl, {
+            const response = await axios.post(config.hubspot.contactApiUrl, {
                 properties: {
                     email,
                     firstname: firstName || '',

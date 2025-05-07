@@ -9,7 +9,7 @@ process.env.CLIENT_PASSWORD = 'test-password';
 process.env.DEMO_ROLE_ID = 'test-role-id';
 process.env.DEMO_TENANT_ID = 'test-tenant-id';
 process.env.HUBSPOT_ACCESS_TOKEN = 'test-hubspot-token';
-process.env.HUBSPOT_API_URL = 'https://api.hubapi.com/crm/v3/objects/contacts';
+process.env.HUBSPOT_CONTACT_API_URL = 'https://api.hubapi.com/crm/v3/objects/contacts';
 process.env.SLACK_API_URL = 'https://hooks.slack.com/services/test';
 process.env.WEBHOOK_SECRET = 'test-webhook-secret';
 
