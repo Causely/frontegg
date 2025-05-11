@@ -1,11 +1,11 @@
 const axios = require('axios');
 const config = require('../config');
-const ErrorUtil = require('../utils/errorUtil');
+const ErrorUtil = require('./../utils/errorUtil');
 
 const HubspotService = {
     getContactUrl(contact) {
         if (!config.hubspot.contactAppUrl) {
-            console.log('Hubspot app url is not set.')
+            ErrorUtil.logError('Hubspot app url is not set.')
             return '';
         }
         return contact?.properties?.hs_object_id ? `${config.hubspot.contactAppUrl}/${contact?.properties?.hs_object_id}` : '';
@@ -13,7 +13,7 @@ const HubspotService = {
 
     async createContact({ email, firstName, lastName }) {
         if (!config.hubspot.accessToken) {
-            console.log('HubSpot access token is not set. Skipping contact creation.');
+            ErrorUtil.logError('HubSpot access token is not set. Skipping contact creation.');
             return;
         }
 
@@ -34,14 +34,13 @@ const HubspotService = {
             console.log('HubSpot contact created:', email);
             return response.data;
         } catch (error) {
-            console.error('Error creating HubSpot contact:', error.response?.data || error.message);
+            ErrorUtil.logError('Error creating HubSpot contact:', error.response?.data || error.message);
             
             if (error.response?.status === 409) {
-                console.log('Contact already exists in HubSpot:', email);
+                ErrorUtil.logError('Contact already exists in HubSpot:', email);
                 return null;
             }
-
-            throw ErrorUtil.internal('Failed to create HubSpot contact');
+            return null;
         }
     }
 };

@@ -62,6 +62,7 @@ describe('SlackService', () => {
             
             vi.spyOn(FronteggUtil, 'getTenantDetails').mockResolvedValueOnce({ name: mockTenantName });
             vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { ok: true } });
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             await SlackService.sendMessage(user, hubspotContactUrl);
@@ -80,6 +81,7 @@ describe('SlackService', () => {
                     ])
                 })
             );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
         });
 
         it('should handle missing tenant ID', async () => {
@@ -91,6 +93,7 @@ describe('SlackService', () => {
             const hubspotContactUrl = 'https://hubspot.com/contact/123';
             
             vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { ok: true } });
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             await SlackService.sendMessage(user, hubspotContactUrl);
@@ -111,9 +114,10 @@ describe('SlackService', () => {
                     ])
                 })
             );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
         });
 
-        it('should throw error on API failure', async () => {
+        it('should log error on API failure', async () => {
             // GIVEN
             const user = {
                 email: 'test@example.com',
@@ -125,12 +129,13 @@ describe('SlackService', () => {
             
             vi.spyOn(FronteggUtil, 'getTenantDetails').mockResolvedValueOnce({ name: 'Test Company' });
             vi.spyOn(axios, 'post').mockRejectedValueOnce(error);
-            vi.spyOn(ErrorUtil, 'internal');
+            vi.spyOn(ErrorUtil, 'logError');
 
-            // WHEN/THEN
-            await expect(SlackService.sendMessage(user, hubspotContactUrl))
-                .rejects.toThrow('Internal Server Error: Failed to post to Slack');
-            expect(ErrorUtil.internal).toHaveBeenCalledWith('Failed to post to Slack');
+            // WHEN
+            await SlackService.sendMessage(user, hubspotContactUrl);
+
+            // THEN
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error posting to Slack:', error.response?.data || error.message);
         });
     });
 }); 
