@@ -14,6 +14,7 @@ describe('FronteggUtil', () => {
             // GIVEN
             const mockToken = 'mock-access-token';
             vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { accessToken: mockToken } });
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             const token = await FronteggUtil.getAuthToken();
@@ -30,18 +31,61 @@ describe('FronteggUtil', () => {
                     headers: { 'Content-Type': 'application/json' }
                 }
             );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
         });
 
-        it('should throw error on authentication failure', async () => {
+        it('should log error on authentication failure', async () => {
             // GIVEN
             const error = new Error('Authentication failed');
             vi.spyOn(axios, 'post').mockRejectedValueOnce(error);
-            vi.spyOn(ErrorUtil, 'internal');
+            vi.spyOn(ErrorUtil, 'logError');
 
-            // WHEN/THEN
-            await expect(FronteggUtil.getAuthToken())
-                .rejects.toThrow('Internal Server Error: Failed to authenticate with Frontegg');
-            expect(ErrorUtil.internal).toHaveBeenCalledWith('Failed to authenticate with Frontegg');
+            // WHEN
+            const result = await FronteggUtil.getAuthToken();
+
+            // THEN
+            expect(result).toBeNull();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error authenticating with Frontegg:', error.response?.data || error.message);
+        });
+    });
+
+    describe('getVendorToken', () => {
+        it('should return vendor token on successful authentication', async () => {
+            // GIVEN
+            const mockToken = 'mock-vendor-token';
+            vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { token: mockToken } });
+            vi.spyOn(ErrorUtil, 'logError');
+
+            // WHEN
+            const token = await FronteggUtil.getVendorToken();
+
+            // THEN
+            expect(token).toBe(mockToken);
+            expect(axios.post).toHaveBeenCalledWith(
+                config.frontegg.vendorUrl,
+                {
+                    clientId: config.frontegg.clientId,
+                    secret: config.frontegg.clientApiKey
+                },
+                {
+                    headers: { 'Content-Type': 'application/json' }
+                }
+            );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
+        });
+
+        it('should log error on authentication failure', async () => {
+            // GIVEN
+            const error = new Error('Authentication failed');
+            vi.spyOn(axios, 'post').mockRejectedValueOnce(error);
+            vi.spyOn(ErrorUtil, 'logError');
+
+            // WHEN
+            const result = await FronteggUtil.getVendorToken();
+
+            // THEN
+            expect(result).toBeNull();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error fetching vendor token:', error.response?.data || error.message);
         });
     });
 
@@ -52,8 +96,9 @@ describe('FronteggUtil', () => {
             const mockTenantId = 'test-tenant-id';
             const mockTenantData = { name: 'Test Tenant' };
 
-            vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { accessToken: mockToken } });
+            vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { token: mockToken } });
             vi.spyOn(axios, 'get').mockResolvedValueOnce({ data: mockTenantData });
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             const tenantDetails = await FronteggUtil.getTenantDetails(mockTenantId);
@@ -69,22 +114,25 @@ describe('FronteggUtil', () => {
                     }
                 }
             );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
         });
 
-        it('should throw error on tenant details fetch failure', async () => {
+        it('should log error on tenant details fetch failure', async () => {
             // GIVEN
             const mockToken = 'mock-access-token';
             const mockTenantId = 'test-tenant-id';
             const error = new Error('Failed to fetch tenant');
 
-            vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { accessToken: mockToken } });
+            vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { token: mockToken } });
             vi.spyOn(axios, 'get').mockRejectedValueOnce(error);
-            vi.spyOn(ErrorUtil, 'internal');
+            vi.spyOn(ErrorUtil, 'logError');
 
-            // WHEN/THEN
-            await expect(FronteggUtil.getTenantDetails(mockTenantId))
-                .rejects.toThrow('Internal Server Error: Failed to fetch tenant details');
-            expect(ErrorUtil.internal).toHaveBeenCalledWith('Failed to fetch tenant details');
+            // WHEN
+            const result = await FronteggUtil.getTenantDetails(mockTenantId);
+
+            // THEN
+            expect(result).toBeNull();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error fetching tenant details:', error.response?.data || error.message);
         });
     });
 
@@ -98,6 +146,7 @@ describe('FronteggUtil', () => {
             const postSpy = vi.spyOn(axios, 'post');
             postSpy.mockResolvedValueOnce({ data: { accessToken: mockToken } });
             postSpy.mockResolvedValueOnce({ data: mockResponse });
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             const result = await FronteggUtil.assignUserToTenant(mockUserEmail);
@@ -129,22 +178,25 @@ describe('FronteggUtil', () => {
                     }
                 }
             );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
         });
 
-        it('should throw error on tenant assignment failure', async () => {
+        it('should log error on tenant assignment failure', async () => {
             // GIVEN
             const mockToken = 'mock-access-token';
             const mockUserEmail = 'test@example.com';
             const error = new Error('Assignment failed');
 
-            vi.spyOn(axios, 'post').mockResolvedValueOnce({ data: { accessToken: mockToken } });
+            vi.spyOn(FronteggUtil, 'getAuthToken').mockResolvedValueOnce(mockToken)
             vi.spyOn(axios, 'post').mockRejectedValueOnce(error);
-            vi.spyOn(ErrorUtil, 'internal');
+            vi.spyOn(ErrorUtil, 'logError');
 
-            // WHEN/THEN
-            await expect(FronteggUtil.assignUserToTenant(mockUserEmail))
-                .rejects.toThrow('Internal Server Error: Failed to assign user to tenant');
-            expect(ErrorUtil.internal).toHaveBeenCalledWith('Failed to assign user to tenant');
+            // WHEN
+            const result = await FronteggUtil.assignUserToTenant(mockUserEmail);
+
+            // THEN
+            expect(result).toBeNull();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error assigning user to tenant:', error.response?.data || error.message);
         });
     });
 }); 

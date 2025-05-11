@@ -33,7 +33,7 @@ class ErrorUtil extends Error {
         }
 
         // Log unexpected errors
-        console.error('Unexpected error:', error);
+        ErrorUtil.logError('Unexpected error:', error);
 
         return res.status(500).json({
             status: 'error',
@@ -111,6 +111,10 @@ class ErrorUtil extends Error {
      */
     static gatewayTimeout(message) {
         return new ErrorUtil(`Gateway Timeout: ${message}`, 504);
+    }
+
+    static logError(message, error = {}) {
+       console.error(message, error)
     }
 }
 

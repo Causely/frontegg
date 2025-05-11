@@ -1,9 +1,13 @@
 const axios = require('axios');
 const config = require('../config');
 const FronteggUtil = require('../utils/fronteggUtil');
-const ErrorUtil = require('../utils/errorUtil');
+const ErrorUtil = require("../utils/errorUtil");
 
 const SlackService = {
+
+    /**
+     * Format message for slack
+     */
     formatMessage({ user, companyName = 'No Company Name', hubspotContactUrl = 'Not created' }) {
         return {
             blocks: [
@@ -44,6 +48,9 @@ const SlackService = {
         };
     },
 
+    /**
+     * Send message to slack
+     */
     async sendMessage(user, hubspotContactUrl) {
         try {
             let companyName = 'No Company Name';
@@ -59,7 +66,7 @@ const SlackService = {
 
             console.log('Slack Message sent:', message);
         } catch (error) {
-            throw ErrorUtil.internal('Failed to post to Slack');
+            ErrorUtil.logError('Error posting to Slack:', error.response?.data || error.message);
         }
     }
 };

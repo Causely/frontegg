@@ -30,6 +30,7 @@ describe('HubspotService', () => {
             };
 
             vi.spyOn(axios, 'post').mockResolvedValueOnce(mockResponse);
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             const result = await HubspotService.createContact(mockContact);
@@ -52,9 +53,10 @@ describe('HubspotService', () => {
                     }
                 }
             );
+            expect(ErrorUtil.logError).not.toHaveBeenCalled();
         });
 
-        it('should return null if contact already exists', async () => {
+        it('should log error and return null if contact already exists', async () => {
             // GIVEN
             const error = {
                 response: {
@@ -63,29 +65,36 @@ describe('HubspotService', () => {
                 }
             };
             vi.spyOn(axios, 'post').mockRejectedValueOnce(error);
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             const result = await HubspotService.createContact(mockContact);
 
             // THEN
             expect(result).toBeNull();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error creating HubSpot contact:', error.response?.data || error.message);
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Contact already exists in HubSpot:', mockContact.email);
         });
 
-        it('should throw error on other failures', async () => {
+        it('should log error and return null on other failures', async () => {
             // GIVEN
             const error = new Error('API Error');
             vi.spyOn(axios, 'post').mockRejectedValueOnce(error);
-            vi.spyOn(ErrorUtil, 'internal');
+            vi.spyOn(ErrorUtil, 'logError');
 
-            // WHEN/THEN
-            await expect(HubspotService.createContact(mockContact)).rejects.toThrow('Internal Server Error: Failed to create HubSpot contact');
-            expect(ErrorUtil.internal).toHaveBeenCalledWith('Failed to create HubSpot contact');
+            // WHEN
+            const result = await HubspotService.createContact(mockContact);
+
+            // THEN
+            expect(result).toBeNull();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('Error creating HubSpot contact:', error.response?.data || error.message);
         });
 
         it('should skip contact creation if access token is not set', async () => {
             // GIVEN
             const originalToken = config.hubspot.accessToken;
             config.hubspot.accessToken = null;
+            vi.spyOn(ErrorUtil, 'logError');
 
             // WHEN
             const result = await HubspotService.createContact(mockContact);
@@ -93,6 +102,7 @@ describe('HubspotService', () => {
             // THEN
             expect(result).toBeUndefined();
             expect(axios.post).not.toHaveBeenCalled();
+            expect(ErrorUtil.logError).toHaveBeenCalledWith('HubSpot access token is not set. Skipping contact creation.');
 
             // Cleanup
             config.hubspot.accessToken = originalToken;
