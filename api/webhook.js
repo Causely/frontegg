@@ -1,132 +1,79 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const axios = require('axios');
 const jwt = require('jsonwebtoken');
+const config = require('./config');
+const ErrorUtil = require('./utils/errorUtil');
+const FronteggUtil = require('./utils/fronteggUtil');
+const UserUtil = require('./utils/userUtil');
+const HubspotService = require('./services/hubspotService');
+const SlackService = require('./services/slackService');
 
 const app = express();
 app.use(bodyParser.json());
-
-// HubSpot Contact Creation
-async function createHubspotContact({ email, firstName, lastName }) {
-    try {
-
-        if(!process.env.HUBSPOT_ACCESS_TOKEN) {
-            console.log('HubSpot access token is not set. Skipping contact creation.');
-            return;
-        }
-
-        await axios.post(
-            'https://api.hubapi.com/crm/v3/objects/contacts',
-            {
-                properties: {
-                    email,
-                    firstname: firstName || '',
-                    lastname: lastName || '',
-                },
-            },
-            {
-                headers: {
-                    Authorization: `Bearer ${process.env.HUBSPOT_ACCESS_TOKEN}`,
-                    'Content-Type': 'application/json',
-                },
-            }
-        );
-        console.log('HubSpot contact created:', email);
-    } catch (error) {
-        console.error('Error creating HubSpot contact:', error.response?.data || error.message);
-    }
-}
-
 
 // Middleware to authenticate webhook requests
 function authenticateWebhook(req, res, next) {
     const webhookToken = req.headers['x-webhook-secret'];
 
     if (!webhookToken) {
-        return res.status(403).send({ message: 'Unauthorized: Missing webhook token' });
+        throw ErrorUtil.unauthorized('Missing webhook token');
     }
 
     try {
-        // Verify the token using the secret key
-        jwt.verify(webhookToken, process.env.WEBHOOK_SECRET);
+        jwt.verify(webhookToken, config.webhook.secret);
         next();
     } catch (err) {
-        return res.status(403).send({ message: 'Unauthorized: Invalid webhook token' });
-    }
-}
-
-// Function to get authentication token
-async function getAuthToken() {
-    try {
-        const response = await axios.post(process.env.FRONTEGG_AUTH_URL, {
-            email:  process.env.CLIENT_EMAIL,
-            password: process.env.CLIENT_PASSWORD,
-        }, {
-            headers: { 'Content-Type': 'application/json' },
-        });
-        return response.data.accessToken;
-    } catch (error) {
-        console.error('Error fetching auth token:', error.response.data);
-        throw new Error('Failed to authenticate with Frontegg.');
-    }
-}
-
-// Function to call the user tenant API
-async function assignUserToTenant(userEmail) {
-    try {
-        const token = await getAuthToken();
-        const url = `${process.env.FRONTEGG_USER_TENANT_URL}`;
-
-        const response = await axios.post(url, {
-            email: userEmail,
-            roleIds: [process.env.DEMO_ROLE_ID],
-            skipInviteEmail: true,
-        }, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        console.log('User successfully assigned to tenant:', response.data);
-    } catch (error) {
-        console.error('Error assigning user to tenant:', error.response?.data || error.message);
-        throw new Error('Failed to assign user to tenant.');
+        console.log(err)
+        throw ErrorUtil.unauthorized('Invalid webhook token');
     }
 }
 
 // Webhook handler
 module.exports = async (req, res) => {
-    // Authenticate webhook
-    authenticateWebhook(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).send({message: 'Method not allowed'});
-        }
-
-        const {eventKey, eventContext, user} = req.body;
-
-        if (eventKey === 'frontegg.user.activated' && eventContext?.tenantId !== process.env.DEMO_TENANT_ID) {
-            try {
-                await assignUserToTenant(user.email);
-
-                res.status(200).send({message: 'User successfully assigned to tenant.'});
-            } catch (error) {
-                res.status(500).send({error: error.message});
+    try {
+        // Authenticate webhook
+        authenticateWebhook(req, res, async () => {
+            if (req.method !== 'POST') {
+                throw ErrorUtil.methodNotAllowed();
             }
-        } if (eventKey === 'frontegg.user.signedUp' && process.env.HUBSPOT_ACCESS_TOKEN) { 
-            try {
-                const [firstName, lastName] = user?.name?.split(' ') || [];
-                await createHubspotContact({
-                        email: user.email,
-                        firstName: firstName || '',
-                        lastName: lastName || ''
-                    });
-                res.status(200).send({message: 'Successfully created HubSpot contact.'});
-            } catch (error) {
-                res.status(500).send({error: error.message});
+
+            const { eventKey, eventContext, user } = req.body;
+
+            // user activated event
+            if (eventKey === config.events.USER_ACTIVATED && 
+                eventContext?.tenantId !== config.frontegg.demoTenantId) {
+                await FronteggUtil.assignUserToTenant(
+                    user.email,
+                );
+                return res.status(200).send({
+                    status: 'success',
+                    message: 'User successfully assigned to tenant.'
+                });
             }
-        } else {
-            res.status(400).send({message: 'Invalid event key or already in the demo tenant.'});
-        }
-    });
-};
+
+            // user signup event
+            if (eventKey === config.events.USER_SIGNED_UP) {
+                const { firstName, lastName } = UserUtil.parseName(user?.name);
+                
+                // Create HubSpot contact
+                const hubspotContact = await HubspotService.createContact({
+                    email: user.email,
+                    firstName,
+                    lastName
+                });
+
+                // Send Slack notification with HubSpot contact URL
+                await SlackService.sendMessage(user, HubspotService.getContactUrl(hubspotContact));
+
+                return res.status(200).json({
+                    status: 'success',
+                    message: 'Successfully processed user signup.'
+                });
+            }
+
+            throw ErrorUtil.badRequest('Invalid event key or already in the demo tenant');
+        });
+    } catch (error) {
+        ErrorUtil.handle(error, res);
+    }
+}; 
