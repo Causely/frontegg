@@ -23,6 +23,9 @@ const HubspotService = {
                     email,
                     firstname: firstName || '',
                     lastname: lastName || '',
+                    lead_source: 'Launch PR',
+                    lead_source_detail: 'Product Trial Sign Up',
+
                 }
             }, {
                 headers: {
